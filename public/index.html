@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WORDBOX LIVE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root{
+    --bg:#0f1220; --panel:#171b2e; --accent:#ffd23f; --accent2:#5ee6c8;
+    --text:#f4f5fb; --sub:#9aa0c3; --tile:#242a45; --tile-border:#3a4270;
+    --found:#5ee6c8; --danger:#ff6b81;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    display:flex; justify-content:center; overflow:hidden;
+  }
+  .phone{
+    width:100%; max-width:480px; height:100vh;
+    display:flex; flex-direction:column; position:relative;
+  }
+
+  /* Zone 1 — Header */
+  .zone-header{
+    flex:0 0 15%;
+    padding:10px 16px;
+    padding-top:calc(10px + env(safe-area-inset-top,0px));
+    display:flex; flex-direction:column; justify-content:center; gap:6px;
+    background:linear-gradient(135deg,var(--panel),var(--bg));
+    border-bottom:1px solid var(--tile-border);
+  }
+  .title{ font-size:15px; font-weight:800; letter-spacing:.06em; color:var(--accent); }
+  .progress-row{ display:flex; align-items:center; gap:8px; }
+  .progress-track{ flex:1; height:10px; border-radius:6px; background:var(--tile); overflow:hidden; }
+  .progress-fill{ height:100%; width:0%; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .4s ease; }
+  .progress-label{ font-size:11px; font-weight:700; color:var(--sub); white-space:nowrap; }
+  .leader{ font-size:11.5px; color:var(--sub); }
+  .leader b{ color:var(--text); }
+
+  /* Zone 2 — Grid */
+  .zone-grid{ flex:0 0 40%; display:flex; align-items:center; justify-content:center; padding:10px; position:relative; }
+  .grid{ display:grid; gap:6px; width:100%; height:100%; max-width:100%; max-height:100%; aspect-ratio:1/1; margin:auto; }
+  .tile{
+    background:var(--tile); border:1px solid var(--tile-border); border-radius:8px;
+    display:flex; align-items:center; justify-content:center; font-weight:800;
+    font-size:clamp(11px, 5vw, 26px); box-shadow:0 2px 0 rgba(0,0,0,.15);
+    transition:background .25s, transform .25s, color .25s;
+  }
+  .tile.lit{ background:var(--accent2); color:#0f1220; transform:scale(1.05); }
+
+  /* Zone 3 — Feed / Leaderboard */
+  .zone-mid{ flex:0 0 30%; display:flex; gap:8px; padding:8px 12px; min-height:0; }
+  .panel{ flex:1; background:var(--panel); border:1px solid var(--tile-border); border-radius:10px; padding:8px; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+  .panel h4{ margin:0 0 6px; font-size:10.5px; color:var(--sub); text-transform:uppercase; letter-spacing:.08em; }
+  #feed{ display:flex; flex-direction:column-reverse; gap:5px; font-size:11.5px; overflow:hidden; }
+  .feed-item{ display:flex; justify-content:space-between; gap:6px; animation:slide-in .3s ease; }
+  .feed-item .word{ color:var(--found); font-weight:700; letter-spacing:.03em; }
+  .feed-item .pts{ color:var(--accent); font-weight:700; }
+  .feed-item.gifted .word{ color:#ff9df0; }
+  @keyframes slide-in{ from{opacity:0; transform:translateX(6px);} to{opacity:1; transform:none;} }
+  #lb{ display:flex; flex-direction:column; gap:5px; font-size:11.5px; overflow:hidden; }
+  .lb-row{ display:flex; justify-content:space-between; }
+  .lb-row .rank{ color:var(--sub); width:16px; display:inline-block; }
+  .lb-row .pts{ color:var(--accent); font-weight:700; }
+
+  /* Zone 4 — Footer */
+  .zone-footer{
+    flex:0 0 15%; padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(135deg,var(--bg),var(--panel)); border-top:1px solid var(--tile-border);
+    display:flex; flex-direction:column; justify-content:center; gap:6px;
+  }
+  .instructions{ font-size:11.5px; color:var(--sub); line-height:1.35; }
+  .gift-row{ display:flex; align-items:center; gap:8px; }
+  .gift-track{ flex:1; height:8px; border-radius:5px; background:var(--tile); overflow:hidden; }
+  .gift-fill{ height:100%; width:0%; background:linear-gradient(90deg,#ff9df0,var(--danger)); transition:width .4s ease; }
+  .gift-label{ font-size:10.5px; color:var(--sub); white-space:nowrap; }
+
+  /* Round-over overlay */
+  .overlay{
+    position:absolute; inset:0; background:rgba(10,12,24,.92);
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; text-align:center; z-index:10; padding:24px;
+  }
+  .overlay.show{ display:flex; }
+  .overlay h2{ color:var(--accent); font-size:22px; margin:0; }
+  .overlay p{ color:var(--sub); margin:0; font-size:14px; }
+  .overlay .crown{ font-size:34px; }
+</style>
+</head>
+<body>
+  <div class="phone">
+
+    <div class="zone-header">
+      <div class="title">WORDBOX LIVE · Endless Mode</div>
+      <div class="progress-row">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">0 / 0</div>
+      </div>
+      <div class="leader" id="leaderLine">👑 Top Scorer: <b>—</b></div>
+    </div>
+
+    <div class="zone-grid">
+      <div class="grid" id="grid"></div>
+      <div class="overlay" id="overlay">
+        <div class="crown">🎉</div>
+        <h2>Target Reached!</h2>
+        <p id="overlayTop">Great job everyone!</p>
+        <p id="overlayNext">Loading next board…</p>
+      </div>
+    </div>
+
+    <div class="zone-mid">
+      <div class="panel">
+        <h4>Found Words</h4>
+        <div id="feed"></div>
+      </div>
+      <div class="panel">
+        <h4>Top 5</h4>
+        <div id="lb"></div>
+      </div>
+    </div>
+
+    <div class="zone-footer">
+      <div class="instructions">Unlimited time! Type words from the grid. Reach the target to unlock the next board!</div>
+      <div class="gift-row">
+        <div class="gift-track"><div class="gift-fill" id="giftFill"></div></div>
+        <div class="gift-label" id="giftLabel">🎁 Gift Boost</div>
+      </div>
+    </div>
+
+  </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const gridEl = document.getElementById('grid');
+  const progressFill = document.getElementById('progressFill');
+  const progressLabel = document.getElementById('progressLabel');
+  const leaderLine = document.getElementById('leaderLine');
+  const feedEl = document.getElementById('feed');
+  const lbEl = document.getElementById('lb');
+  const overlay = document.getElementById('overlay');
+  const overlayTop = document.getElementById('overlayTop');
+  const overlayNext = document.getElementById('overlayNext');
+  const giftFill = document.getElementById('giftFill');
+  const giftLabel = document.getElementById('giftLabel');
+
+  let currentN = 0;
+  let tileEls = [];
+
+  function speak(text) {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.02;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* TTS unsupported — silently skip */ }
+  }
+
+  function buildGrid(n, letters) {
+    currentN = n;
+    gridEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    gridEl.innerHTML = '';
+    tileEls = [];
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        const t = document.createElement('div');
+        t.className = 'tile';
+        t.textContent = letters[r][c];
+        gridEl.appendChild(t);
+        tileEls.push(t);
+      }
+    }
+  }
+
+  function litPathFlash(path) {
+    if (!path) return;
+    const els = path.map(([r, c]) => tileEls[r * currentN + c]);
+    els.forEach(el => el && el.classList.add('lit'));
+    setTimeout(() => els.forEach(el => el && el.classList.remove('lit')), 850);
+  }
+
+  function renderState(state) {
+    if (state.n !== currentN) buildGrid(state.n, state.grid);
+    const pct = state.target ? Math.min(100, Math.round((state.progress / state.target) * 100)) : 0;
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = `${state.progress} / ${state.target}`;
+
+    const top = state.leaderboard[0];
+    leaderLine.innerHTML = top ? `👑 Top Scorer: <b>${top.user}</b> — ${top.pts} pts` : '👑 Top Scorer: <b>—</b>';
+
+    feedEl.innerHTML = '';
+    [...state.feed].reverse().forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'feed-item' + (item.gifted ? ' gifted' : '');
+      row.innerHTML = `<span class="word">${item.user}: ${item.word}</span><span class="pts">+${item.points}</span>`;
+      feedEl.appendChild(row);
+    });
+
+    lbEl.innerHTML = '';
+    state.leaderboard.forEach((row, i) => {
+      const el = document.createElement('div');
+      el.className = 'lb-row';
+      el.innerHTML = `<span><span class="rank">${i + 1}</span>${row.user}</span><span class="pts">${row.pts}</span>`;
+      lbEl.appendChild(el);
+    });
+
+    const giftPct = state.target ? Math.min(100, Math.round((state.giftContribution / state.target) * 100)) : 0;
+    giftFill.style.width = giftPct + '%';
+    giftLabel.textContent = `🎁 ${state.giftContribution} gift-boosted words`;
+  }
+
+  socket.on('state', renderState);
+
+  socket.on('guess_result', (result) => {
+    litPathFlash(result.path);
+  });
+
+  socket.on('shuffle', () => {
+    gridEl.style.opacity = '0.3';
+    setTimeout(() => { gridEl.style.opacity = '1'; }, 300);
+  });
+
+  socket.on('gift_boost', (data) => {
+    speak(`Thanks for the gift, ${data.user}!`);
+  });
+
+  socket.on('big_gift', (data) => {
+    speak(`Huge gift from ${data.user}! Five words solved!`);
+  });
+
+  socket.on('round_over', (data) => {
+    overlayTop.textContent = data.top ? `Top Scorer: ${data.top.user} (${data.top.pts} pts)` : 'Great job everyone!';
+    overlayNext.textContent = 'Loading next board…';
+    overlay.classList.add('show');
+    speak('Target reached! Great job everyone!');
+  });
+
+  socket.on('new_round', () => {
+    overlay.classList.remove('show');
+  });
+</script>
+</body>
+</html>

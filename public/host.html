@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WORDBOX LIVE — Host Test Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{ font-family:system-ui,sans-serif; background:#0f1220; color:#f4f5fb; padding:20px; max-width:520px; margin:0 auto; }
+  h1{ font-size:18px; color:#ffd23f; }
+  p.hint{ color:#9aa0c3; font-size:13px; }
+  section{ background:#171b2e; border:1px solid #3a4270; border-radius:10px; padding:14px; margin-bottom:14px; }
+  label{ display:block; font-size:12px; color:#9aa0c3; margin-bottom:4px; }
+  input{ width:100%; padding:8px; border-radius:6px; border:1px solid #3a4270; background:#242a45; color:#f4f5fb; margin-bottom:10px; }
+  button{ padding:9px 14px; border-radius:6px; border:none; background:#5ee6c8; color:#0f1220; font-weight:700; cursor:pointer; margin-right:8px; }
+  button.alt{ background:#ffd23f; }
+  button.danger{ background:#ff6b81; color:#fff; }
+  #log{ font-size:12px; color:#9aa0c3; white-space:pre-wrap; max-height:160px; overflow:auto; background:#0f1220; border-radius:6px; padding:8px; }
+  .grid-view{ display:grid; gap:4px; margin-top:8px; }
+  .grid-view div{ background:#242a45; border:1px solid #3a4270; border-radius:4px; text-align:center; font-weight:700; padding:6px 0; font-size:12px; }
+</style>
+</head>
+<body>
+  <h1>WORDBOX LIVE — Host Test Panel</h1>
+  <p class="hint">Not for broadcast. Use this tab to simulate TikTok chat, likes, and gifts while developing — open <code>/</code> in another tab/device (the one you'll actually screen-share) to watch it update live.</p>
+
+  <section>
+    <label>Viewer name</label>
+    <input id="user" value="TestViewer">
+    <label>Word guess</label>
+    <input id="word" placeholder="Type a word visible on the current grid">
+    <button onclick="sendGuess()">Submit guess</button>
+  </section>
+
+  <section>
+    <button onclick="socket.emit('test_like_burst')">🔥 Simulate 5k Likes (Shuffle)</button>
+    <button class="alt" onclick="smallGift()">🌹 Simulate Rose (+5 words)</button>
+    <button class="danger" onclick="bigGift()">🌌 Simulate Galaxy (solve 5 longest)</button>
+  </section>
+
+  <section>
+    <strong>Current grid</strong>
+    <div id="gridView" class="grid-view"></div>
+  </section>
+
+  <section>
+    <strong>Event log</strong>
+    <div id="log"></div>
+  </section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const log = (msg) => {
+    const el = document.getElementById('log');
+    el.textContent = `${new Date().toLocaleTimeString()}  ${msg}\n` + el.textContent;
+  };
+
+  function sendGuess() {
+    const user = document.getElementById('user').value || 'TestViewer';
+    const text = document.getElementById('word').value;
+    socket.emit('test_chat', { user, text });
+    document.getElementById('word').value = '';
+  }
+  function smallGift() {
+    const user = document.getElementById('user').value || 'TestGifter';
+    socket.emit('test_small_gift', { user });
+  }
+  function bigGift() {
+    const user = document.getElementById('user').value || 'TestGifter';
+    socket.emit('test_big_gift', { user });
+  }
+
+  socket.on('state', (state) => {
+    const gv = document.getElementById('gridView');
+    gv.style.gridTemplateColumns = `repeat(${state.n}, 1fr)`;
+    gv.innerHTML = '';
+    state.grid.flat().forEach(letter => {
+      const d = document.createElement('div');
+      d.textContent = letter;
+      gv.appendChild(d);
+    });
+  });
+  socket.on('guess_result', (r) => log(`✅ ${r.user} found "${r.word}" (+${r.points}) — ${r.progress}/${r.target}`));
+  socket.on('guess_rejected', (r) => log(`❌ rejected: ${r.reason}`));
+  socket.on('shuffle', () => log('🔀 board shuffled'));
+  socket.on('gift_boost', (d) => log(`🌹 ${d.user} boosted progress by 5`));
+  socket.on('big_gift', (d) => log(`🌌 ${d.user} auto-solved: ${d.solved.join(', ')}`));
+  socket.on('round_over', (d) => log(`🎉 round over — top: ${d.top ? d.top.user : 'n/a'}`));
+  socket.on('new_round', (d) => log(`🆕 new round — ${d.n}x${d.n}, target ${d.target}`));
+</script>
+</body>
+</html>
