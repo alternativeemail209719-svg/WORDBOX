@@ -66,6 +66,16 @@ trigger events). To pull real events from a live TikTok stream:
 4. Chat comments, likes, and gifts named "Rose" / "Galaxy" now drive the
    game automatically — no need to touch `host.html`.
 
+Optional: set **`EULER_API_KEY`** to raise the free rate limit on the
+sign server `tiktok-live-connector` uses under the hood (get one at
+https://www.eulerstream.com). Not required to get started — the free
+community tier works fine for testing and small streams.
+
+> `tiktok-live-connector` is a reverse-engineering project (there's no
+> official TikTok Live API), so TikTok can change things without notice —
+> if live events stop arriving, check the package's GitHub for updates
+> and bump the version in `package.json`.
+
 If you use different gift names, edit the `name.includes('rose')` /
 `name.includes('galaxy')` checks near the bottom of `server.js`.
 

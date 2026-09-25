@@ -134,38 +134,59 @@ io.on('connection', (socket) => {
 // Optional: real TikTok Live connection
 // Requires `tiktok-live-connector` (already in package.json) and you to
 // actually be live under TIKTOK_USERNAME. Safe to leave unset for testing.
+//
+// tiktok-live-connector v2 ships as an ES module only, so it's loaded here
+// with a dynamic import() (works fine from this CommonJS server.js — the
+// rest of the file stays require()-based).
 // ---------------------------------------------------------------------------
 if (process.env.TIKTOK_USERNAME) {
-  try {
-    const { WebcastPushConnection } = require('tiktok-live-connector');
-    const tiktok = new WebcastPushConnection(process.env.TIKTOK_USERNAME);
-    let likesSinceShuffle = 0;
+  (async () => {
+    try {
+      const { TikTokLiveConnection, WebcastEvent, ControlEvent, SignConfig } =
+        await import('tiktok-live-connector');
 
-    tiktok.connect()
-      .then(state => console.log(`[wordbox] connected to TikTok room ${state.roomId}`))
-      .catch(err => console.error('[wordbox] TikTok connect failed:', err.message));
-
-    tiktok.on('chat', data => handleGuess(data.nickname, data.comment));
-
-    tiktok.on('like', data => {
-      likesSinceShuffle += data.likeCount || 1;
-      if (likesSinceShuffle >= 5000) {
-        likesSinceShuffle = 0;
-        handleShuffle();
+      // Optional: an Euler Stream API key raises the free community rate
+      // limit. Not required to connect. Get one at https://www.eulerstream.com
+      if (process.env.EULER_API_KEY) {
+        SignConfig.apiKey = process.env.EULER_API_KEY;
       }
-    });
 
-    tiktok.on('gift', data => {
-      if (data.giftType === 1 && !data.repeatEnd) return; // wait out repeatable combo
-      const name = (data.giftName || '').toLowerCase();
-      if (name.includes('rose')) handleSmallGift(data.nickname);
-      else if (name.includes('galaxy')) handleBigGift(data.nickname);
-    });
+      const tiktok = new TikTokLiveConnection(process.env.TIKTOK_USERNAME);
+      let likesSinceShuffle = 0;
 
-    tiktok.on('streamEnd', () => console.log('[wordbox] TikTok stream ended'));
-  } catch (err) {
-    console.warn('[wordbox] tiktok-live-connector unavailable — run `npm install` to enable live mode.', err.message);
-  }
+      tiktok.connect()
+        .then(state => console.log(`[wordbox] connected to TikTok room ${state.roomId}`))
+        .catch(err => console.error('[wordbox] TikTok connect failed:', err.message));
+
+      tiktok.on(WebcastEvent.CHAT, data => {
+        const name = data.user?.nickname || data.user?.uniqueId || 'Viewer';
+        handleGuess(name, data.comment || '');
+      });
+
+      tiktok.on(WebcastEvent.LIKE, data => {
+        likesSinceShuffle += data.likeCount || 1;
+        if (likesSinceShuffle >= 5000) {
+          likesSinceShuffle = 0;
+          handleShuffle();
+        }
+      });
+
+      tiktok.on(WebcastEvent.GIFT, data => {
+        const giftType = data.giftDetails?.giftType;
+        if (giftType === 1 && !data.repeatEnd) return; // wait out repeatable combo streak
+        const giftName = (data.giftDetails?.giftName || '').toLowerCase();
+        const name = data.user?.nickname || data.user?.uniqueId || 'Gifter';
+        if (giftName.includes('rose')) handleSmallGift(name);
+        else if (giftName.includes('galaxy')) handleBigGift(name);
+      });
+
+      tiktok.on(WebcastEvent.STREAM_END, () => console.log('[wordbox] TikTok stream ended'));
+      tiktok.on(ControlEvent.ERROR, ({ info, exception }) =>
+        console.error('[wordbox] TikTok connector error:', info, exception?.message));
+    } catch (err) {
+      console.warn('[wordbox] tiktok-live-connector unavailable — run `npm install` to enable live mode.', err.message);
+    }
+  })();
 } else {
   console.log('[wordbox] TIKTOK_USERNAME not set — local test mode. Open /host.html to simulate chat/gifts.');
 }
